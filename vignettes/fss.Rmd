@@ -1,0 +1,844 @@
+---
+title: "Functional status scale for pediatric TBI"
+output:
+ rmarkdown::html_vignette:
+   number_section: true
+bibliography: references.bib
+csl: ccm.csl
+vignette: >
+ %\VignetteIndexEntry{fss}
+ %\VignetteEngine{knitr::rmarkdown}
+ %\VignetteEncoding{UTF-8}
+---
+
+
+```{r label = "setup", include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE)
+```
+
+
+This vignette has two purposes:
+
+1. Provide a detailed data analysis example for the provided data, and
+2. a reproduction/extension of @bennett2016functional.
+
+It will be based on the PEDALFAST data set.  Most of the R code will be
+echoed in this vignette.  The full .Rmd file, including the in line code, can
+be found at:
+
+```{r label = "system-location-of-vignette", eval = FALSE}
+system.file("doc/fss.Rmd", package = "pedalfast.data")
+```
+
+
+The needed namespaces to reproduce this vignette are:
+
+
+```{r label = "namespaces"}
+library(pedalfast.data)
+library(knitr)
+library(qwraps2)
+library(ggplot2)
+options(qwraps2_markup = 'markdown')
+
+data(pedalfast, pedalfast_metadata)
+```
+
+
+There are some data manipulation steps that need to be taken before getting
+into the manuscript.
+
+**GCS Using**: Glasgow Coma Scale (GCS) assessments occurred in the emergency
+department (ED) and/or the ICU.  For the purposes of this work we will us the
+GCS assessed in the emergency department as primary and the ICU value if the
+ED value is unknown.
+
+
+```{r label = "build-gcsusing"}
+# gather all the gcs values form the ed.
+gcs_ed_vars <- grep("^gcs.*ed$", names(pedalfast), value = TRUE)
+gcs_ed_vars
+
+# create a set of gcs _using variables.
+for(j in gcs_ed_vars) {
+  pedalfast[[sub("ed$", "_using", j)]] <-
+    ifelse(is.na(pedalfast[[j]]), pedalfast[[ sub("ed$", "icu", j) ]], pedalfast[[j]])
+}
+
+summary(pedalfast$gcs_using)
+
+# Inspect the rows with missing values:
+pedalfast[is.na(pedalfast$gcs_using), ]
+```
+
+
+Most of the data associated with records missing gcs_using is also missing.
+For simplicity we will omit these records.
+
+
+```{r label = "subset-via-gcsusing"}
+pedalfast <- subset(pedalfast, !is.na(gcs_using))
+```
+
+
+**GCS Categories**
+
+GCS values provided in the pedalfast data set are integer values.  These
+values are mapped to specific categorical interpretations.  GCS is commonly
+used as both a numeric value and a categorical value.  We will create
+variables here with the GCS categories documented in the metadata.
+
+
+
+```{r }
+pedalfast$gcseye_using_cat    <- gcs_as_factor(pedalfast$gcseye_using, "eye")
+pedalfast$gcsmotor_using_cat  <- gcs_as_factor(pedalfast$gcsmotor_using, "motor")
+pedalfast$gcsverbal_using_cat <- gcs_as_factor(pedalfast$gcsverbal_using, "verbal")
+```
+
+
+**GCS Severe**
+Severe TBI will be defined as a GCS of eight or less.
+
+```{r }
+pedalfast$severetbi <- as.integer(pedalfast$gcs_using <= 8)
+```
+
+
+**FSS Total**
+
+The FSS total score is the sum of the six fss subscales.
+
+```{r }
+fsscols <- grep("^fss", names(pedalfast), value = TRUE)
+fsscols
+
+pedalfast$fsstotal <- rowSums(pedalfast[, fsscols])
+summary(pedalfast$fsstotal)
+```
+
+
+Looking into the missing values, most are associated with hospital
+disposition of mortality.
+
+```{r }
+with(pedalfast, table(hospdisposition, is.na(fsstotal)))
+```
+
+
+The FSS total score can be placed into categories:
+
+```{r }
+pedalfast$fsstotal_cat  <- fss_as_factor(pedalfast$fsstotal, long_label = FALSE)
+pedalfast$fsstotal_cat2 <- fss_as_factor(pedalfast$fsstotal, long_label = TRUE)
+
+table(pedalfast$fsstotal_cat)
+table(pedalfast$fsstotal_cat2)
+
+fss_labeller <- function(x) {
+  x <- sub("fssmental", "Mental", x)
+  x <- sub("fsssensory", "Sensory", x)
+  x <- sub("fsscommun", "Communication", x)
+  x <- sub("fssmotor", "Motor", x)
+  x <- sub("fssfeeding", "Feeding", x)
+  x <- sub("fssresp", "Respiratory", x)
+  x
+}
+```
+
+
+# Abstract:
+
+**Objective:** Describe hospital discharge functional outcome in pediatric
+traumatic brain injury (TBI) patients via discharge Functional Status Scale
+(FSS).  Determine and report any associations between FSS and age, injury
+mechanism, neurological exam, imaging, and other predictors of outcome.
+
+**Design:** Prospective observational cohort study.
+
+**Setting:** Multiple American College of Surgeons level 1 Pediatric Trauma
+Centers.
+
+**Patients:** Children under 18 years of age who were admitted to an
+intensive car unit (ICU) with acute TBI and underwent either a surgical or
+critical care intervention within initial twenty-four hours, or in-hospital
+mortality.
+
+**Interventions:** None.
+
+**Measurements and Main Results:** Hospital discharge FSS is the primary
+outcome.  A majority,
+`r  paste0(n_perc(pedalfast$severetbi, show_denom = "always"), ",")  `
+had severe TBI (admission GCS 3-8). Overall in-hospital mortality was
+`r  paste0(n_perc(pedalfast$hospdisposition == "Mortality", show_denom = "always"), ";")  `
+`r  with(subset(pedalfast, severetbi == 1), n_perc(hospdisposition == "Mortality", show_denom = "always"))  `
+among those with severe TBI.  Hospital discharge FSS had an inverse
+relationship with GCS: for each one unit increase in admission GCS the
+expected FSS total score decreases by
+`r  m <- lm(fsstotal ~ -gcs_using, data = pedalfast); frmtci(c(coef(m), confint(m)), show_level = TRUE)  `
+units.
+
+
+# Introduction
+
+Approximately 2,200 pediatric-deaths and 35,000 pediatric-hospitalizations
+per annum are attributed to acute trauma brain injury (TBI). [@Faul2010]
+Pediatric non-fatal TBI are commonly associated with new morbidities such as
+motor, communication, behavioral, or social impairments. [@Frieden2014]
+
+Trials of acute interventions for children with TBI are hampered by a lack of
+relevant, easily administered functional outcome measures that can be used at
+the time of intensive care unit (ICU) or hospital discharge. Easily
+administered instruments such as the Pediatric Cerebral Performance Category
+(PCPC) and the Pediatric Overall Performance Category (POPC) lack the
+sensitivity and precision required for studies of
+interventions.[@Fiser1992;@Fiser2000;@Fiser2000a;@Bennett2015c] Other
+instruments such as the Glasgow Outcome Scale - Extended, Pediatric version
+(GOS-E Peds)[@Beers2012] and the King's Outcome Scale for Childhood Head
+Injury (KOSCHI)[@Crouchman2001] are focused on patient function after return
+to home and community.
+
+Improvements in the care of critically ill children have decreased ICU
+mortality to less than 5%, but survivors often have significant functional
+impairment.[@Namachivayam2010;@Slonim2010;@Bone2014;@Pollack2014a;@Choong2015]
+In response to the need for a reliable, rapid measure of functional outcome
+appropriate for in-hospital use, the NIH-funded Collaborative Pediatric
+Critical Care Research Network (CPCCRN)[@CPCCRN] developed and validated the
+Functional Status Scale (FSS).[@Pollack2009;@Pollack2014]
+
+The FSS has 6 domains: Mental, Sensory, Communication, Motor, Feeding, and
+Respiratory.  The scale in each domain is from 1 (no dysfunction) to 5 (very
+severe dysfunction), with a total score from 6 (normal) to 30 (very severe
+dysfunction in all domains).  Appendix Table 1 shows the 6 domains and the 5
+levels within each domain.  The FSS is designed to be collected from hospital
+providers (e.g., a patient's primary nurse), supplemented by medical records
+when necessary.[@Pollack2015] The FSS correlates with a gold-standard
+adaptive behavior instrument, the Adaptive Behavior Assessment System (ABAS
+II), with a Pearson's correlation coefficient of 0.60. It also discriminates
+moderate and severe decrements in adaptive behavior well (areas under the
+curve 0.82 and 0.86, respectively).[@Pollack2009] Interrater reliability is
+excellent: the intraclass correlation coefficient is 0.95 for the six domain
+scores.[@Pollack2009] Importantly, Pollack et al. have validated that a FSS
+score at hospital discharge &ge; 3 points above a child's pre-hospitalization
+baseline represents newly impaired functional status or "new morbidity" in
+survivors of critical illness or injury.[@Pollack2014a]
+
+However, the studies of the FSS to date have analyzed heterogeneous cohorts
+of critically ill children, and no study of children with TBI to date has
+reported FSS scores. The distributions of hospital discharge FSS and change
+in FSS from baseline to hospital discharge in critically injured children
+with TBI are unknown.  We conducted this multi-center prospective
+observational study to accomplish the following aims: 1) to describe FSS and
+change in FSS from baseline in children admitted to an ICU after TBI and 2)
+to determine any associations between discharge FSS and age, injury
+mechanism, neurological exam findings, brain computed tomography (CT) findings,
+and other predictors of outcome in children with
+TBI.[@Maas2005;@Maas2013;@Liesemer2014;@Tasker2014c]
+
+# Methods
+
+_Study Sites and Subject Enrollment_
+
+This prospective cohort study was conducted at multiple American College of
+Surgeons (ACS) freestanding level I Pediatric Trauma Centers.  Each site has
+between 2000 and 3000 Pediatric ICU admissions per year.  We reviewed the ICU
+census at each site daily, checked ICU admission logbooks, and reviewed ICU
+screening logs to ensure that all eligible children were observed. Because
+the study was granted a waiver of consent at all sites (see _Regulatory
+Approvals_ below), all eligible patients were enrolled.
+
+_Inclusion/Exclusion Criteria_
+
+We prospectively identified all patients under 18 years of age admitted to an
+ICU with a diagnosis of acute TBI and either a Glasgow Coma Scale (GCS) score
+at most 12 or a neurosurgical procedure (intracranial pressure [ICP] monitor,
+external ventricular drain (EVD), craniotomy, or craniectomy) within the
+first twenty-four hours of admission. We excluded surviving patients
+discharged from the ICU within twenty-four hours of ICU admission without an
+intervention (invasive or noninvasive ventilation, ICP monitoring, any
+operative procedure, an arterial or central venous catheter, or osmolar
+therapy). We categorized TBI severity using the ED GCS: 3-8 = severe, 9-12 =
+moderate, 13-15 = mild. For the
+`r  sum(is.na(pedalfast$gcsed))  `
+patients who did not have a GCS measured in the ED (direct admissions to the
+ICU), we used the GCS measured on ICU admission. Children with mild TBI who
+did not receive a neurosurgical procedure in the first 24 hours were
+excluded.
+
+_Prospective Data Collection_
+
+For variables such as GCS that might be documented by multiple providers or
+in multiple locations in the medical record, we defined a hierarchy of data
+sources. In the Emergency Department (ED), we used the following data sources
+in order of priority: Trauma Surgery attending physician note, then
+Neurosurgery attending physician note, then ED attending physician note.
+Similarly, in the ICU we used the ICU attending physician note, then ICU
+advanced practice provider note, then ICU resident note, then ICU nursing
+flowsheet. At the time of each GCS assessment, the study team recorded
+whether the patient was intubated, sedated, chemically paralyzed, or had
+obstruction to eye assessment.[@NTDSurl]
+
+We captured the time and text report of the first brain CT study formally
+read by a PCH or CHCO pediatric radiologist. The presence or absence of CT
+features (e.g. subdural hematoma [SDH]) were extracted from the CT report by
+the study team.
+
+_Functional Status Scale Collection_
+
+We categorized FSS scores using the rubric developed by Pollack et
+al.[@Pollack2014a] That 5-category rubric is designed to follow the
+categories of the PCPC/POPC system, but has greater granularity within each
+category.[@Fiser2000;@Pollack2014]
+
+_Statistical Methods_
+
+Means are shown &plusmn; standard deviation (SD). Medians are shown with
+interquartile range (IQR).  We tested two-sample differences in FSS using
+Student's t-test assuming unequal variances.  To estimate variation of FSS
+scores within categories of admission GCS, we used the approach of Pollack et
+al. and calculated the width ("dispersion") of the 10^th^ to 90^th^
+percentile range.[@Pollack2014a] To test the FSS-age, FSS-mechanism, and
+FSS-GCS relationships, we fit three separate linear regression models.  Age
+(in years) and GCS were fit as continuous variables and injury mechanism as a
+categorical variable.  Scatterplots are shown as "bubble charts." The area of
+each point is directly proportional to the number of patients with that
+particular combination of X and Y values.[@Tufte2001] We grouped IVH and SAH
+to be consistent with the Rotterdam CT scoring
+system[@Maas2005;@Liesemer2014]
+
+Data analysis was conducted in R version
+`r  paste0(paste(R.version[c("major", "minor")], collapse = "."), ".")  `
+[@Rbase]
+
+_Regulatory Approvals_
+
+This study was granted a waiver of consent by the institutional review boards at
+both institutions.
+
+# Results
+
+## Prospective Cohort
+
+Our cohort consists of
+`r  nrow(pedalfast)  `
+patients.  Known or suspected abuse accounted for
+`r  n_perc(pedalfast$injurymech == "Known or suspected abuse")  `
+of the hospitalizations.  The "Other" injury mechanism category included
+injuries related to penetrating projectiles, all-terrain vehicles, horseback
+riding, and others.  At the time of GCS assessment
+`r  n_perc(pedalfast$gcsett_using)  `
+were intubated,
+`r  n_perc(pedalfast$gcssed_using)  `
+were under the influence of sedation medication, and
+`r  n_perc(pedalfast$gcspar_using)  `
+were chemically paralyzed.
+
+Most of the patients,
+`r  paste0(n_perc(pedalfast$severetbi, show_denom = "always"), ",")  `
+had severe TBI (Appendix Table 2).  Hospital mortality was
+`r  n_perc(pedalfast$hospdisposition == "Mortality", show_denom = "always")  `
+overall and
+`r  with(subset(pedalfast, severetbi == 1), n_perc(hospdisposition == "Mortality", show_denom = "always"))  `
+among those with severe TBI.  The "Other
+
+## Hospital Discharge Functional Status Scale
+
+Many children who survived to hospital discharge had impaired functional
+status.
+`r  n_perc(pedalfast$fsstotal >= 8)  `
+had at least "mildly abnormal" functional status and
+`r  n_perc(pedalfast$fsstotal >= 10)  `
+had at least "moderately abnormal" functional status (Table
+2).[@Pollack2014a]  The mean &plusmn; standard deviation for the total FSS, for those with a
+known FSS, was
+`r  with(subset(pedalfast, !is.na(fsstotal)), mean_sd(fsstotal))  `
+and the median (IQR) total FSS was
+`r  with(subset(pedalfast, !is.na(fsstotal)), paste0(median_iqr(fsstotal), "."))  `
+Among patients with sever TBI and known FSS total,
+`r  with(subset(pedalfast, severetbi == 1 & !is.na(fsstotal)), n_perc(fsstotal >= 8, show_denom = "always"))  `
+had at least "mildly abnormal" functional status and
+`r  with(subset(pedalfast, severetbi == 1 & !is.na(fsstotal)), n_perc(fsstotal >= 10))  `
+had at least "moderately abnormal" functional status (Appendix Table 3).
+For patients with severe TBI, the mean &plusmn; standard deviation total FSS was
+`r  with(subset(pedalfast, severetbi == 1 & !is.na(fsstotal)), mean_sd(fsstotal))  `
+and the median (IQR) total FSS was
+`r  with(subset(pedalfast, severetbi == 1 & !is.na(fsstotal)), paste0(median_iqr(fsstotal), "."))  `
+
+## Functional Status Scale Domains
+
+
+```{r label = "dysfunction_summary"}
+some_dysfunction <-
+  lapply(grep("^fss(?!total)", names(pedalfast), perl = TRUE, value = TRUE),
+         function(x) {
+           rtn <-
+             data.frame(variable = x,
+                        p        = mean(na.omit(pedalfast[[x]]) > 1))
+           rtn$plb <- paste0(frmt(rtn$p * 100), "% (", sub("^fss(\\w)", "\\U\\1", x, perl = TRUE), ")")
+           rtn
+         })
+
+some_dysfunction <- do.call(rbind, some_dysfunction)
+some_dysfunction
+
+# when at least one of the fss scales reported a value of 2, and 2 is the max
+# value across all six sclaes, the most common scale with a value of 2 is:
+fss_matrix <- pedalfast[, grep("^fss(?!total)", names(pedalfast), perl = TRUE, value = TRUE)]
+
+fss_matrix <- suppressWarnings(cbind(fss_matrix, max = apply(fss_matrix, 1, max, na.rm = TRUE)))
+fss_matrix <- fss_matrix[fss_matrix$max > -Inf, ]
+
+score_mode <-
+  lapply(2:5, function(i) apply(fss_matrix[fss_matrix$max == i, ], 2, function(x) sum(x == i, na.rm = TRUE)))
+score_mode <- do.call(rbind, score_mode)
+score_mode
+colSums(score_mode)
+
+apply(score_mode[, -7], 1, which.max)
+```
+
+
+Functional impairment at hospital discharge was present for all of the six
+FSS domains (Figure 1).  Within each domain, the percent of survivors with
+some dysfunction (domain score > 1) ranged from
+`r  subset(some_dysfunction, p == min(some_dysfunction$p))[["plb"]]  `
+to
+`r  paste0(subset(some_dysfunction, p == max(some_dysfunction$p))[["plb"]], ".")  `
+When some dysfunction was observed,
+`r  sub("^fss", "", names(which.max(colSums(score_mode[, -7]))))  `
+was the most likely to be the domain with the most dysfunction with the
+domains
+`r  gsub("fss", "", paste( colnames(score_mode)[-7][order(colSums(score_mode[, -7]), decreasing = TRUE)][-1], collapse = ", "))  `
+being the most next most common, in descending order.
+
+When there is some observed dysfunction, and the maximal rating within any
+domain was "mild," the most common domain was
+`r  paste(sub("fss", "", names(which(score_mode[1, -7] == max(score_mode[1, -7])))), collapse = " and ")  `
+For a maximal rating of "moderate," the most common domain with the rating
+was
+`r  paste(sub("fss", "", names(which(score_mode[2, -7] == max(score_mode[2, -7])))), collapse = " and ")  `
+The most common domains for maximal ratings of "severe" and "very severe"
+were
+`r  paste(sub("fss", "", names(which(score_mode[3, -7] == max(score_mode[3, -7])))), collapse = " and ")  `
+and
+`r  paste(sub("fss", "", names(which(score_mode[4, -7] == max(score_mode[4, -7])))), collapse = " and ")  `
+respectively.
+
+## Discharge FSS by Age, Injury Mechanism
+
+
+```{r }
+fit <- lm(fsstotal ~ injurymech + 0 + I(age / 365.25), data = pedalfast)
+summary(fit)
+car::Anova(fit, type = 2)
+fsstotal_lm_cis <- qwraps2::frmtci(cbind(coef(fit), confint(fit)), show_level = TRUE)
+fsstotal_lm_cis
+```
+
+
+We examined associations of age and injury mechanism with discharge FSS via
+linear regression and found no statistical evidence to support an association
+between patient age and discharge FSS: expected change in discharge FSS for
+each year of age
+`r  paste0(fsstotal_lm_cis[grepl("\\Wage\\W", names(fsstotal_lm_cis))], ".")  `
+Discharge FSS varied widely among those children injured by motor vehicle
+traffic, child abuse, and other mechanisms
+`r  paste0(extract_fpvalue(fit), ".")  `
+The mean &plusmn; standard deviation known discharge FSS for children injured in falls was
+`r  with(subset(pedalfast, injurymech == "Fall" & !is.na(fsstotal)), mean_sd(fsstotal))  `
+compared to
+`r  with(subset(pedalfast, injurymech == "Traffic" & !is.na(fsstotal)), mean_sd(fsstotal))  `
+for children injured in traffic incidents,
+`r  with(subset(pedalfast, injurymech == "Known or suspected abuse" & !is.na(fsstotal)), mean_sd(fsstotal))  `
+for children injured in known or suspected abuse incidents, and
+`r  with(subset(pedalfast, injurymech == "Other" & !is.na(fsstotal)), mean_sd(fsstotal))  `
+for children injured by other mechanisms.
+
+## Discharge FSS and Admission GCS
+
+
+```{r }
+fit <- lm(fsstotal ~ gcs_using, data = pedalfast)
+fss_by_gcs_ci <- qwraps2::frmtci(cbind(coef(fit), confint(fit)), show_level = TRUE)
+
+mean_fss_by_gcs <-
+  aggregate(fsstotal ~ gcs_using, data = pedalfast, FUN = mean_sd, show_n = "never", na_rm = TRUE)
+
+mean_fss_by_gcsm <-
+  aggregate(fsstotal ~ gcsmotor_using, data = pedalfast, FUN = mean_sd, show_n = "never", na_rm = TRUE)
+```
+
+
+The most common FSS score at hospital discharge was
+`r  names(table(pedalfast$fsstotal))[table(pedalfast$fsstotal) == max( table(pedalfast$fsstotal))]  `
+and that score was found in children with every value of admission GCS
+(Figure 2).  The mean &plusmn; standard deviation discharge FSS ranged from
+`r  subset(mean_fss_by_gcs, gcs_using == 15)[["fsstotal"]]  `
+for a GCS of 15 to
+`r  subset(mean_fss_by_gcs, gcs_using == 3)[["fsstotal"]]  `
+for a GCS of 3.  The mean discharge FSS ranged from
+`r  subset(mean_fss_by_gcsm, gcsmotor_using == 6)[["fsstotal"]]  `
+for a GCS-Motor of 6 to
+`r  subset(mean_fss_by_gcsm, gcsmotor_using == 1)[["fsstotal"]]  `
+for a GCS-Motor of 1.
+The variation in discharge FSS within GCS categories was higher for more
+severe injuries than milder injuries: 10^th^ to 90^th^ percentile range
+(width) =
+`r  with(subset(pedalfast, severetbi == 1), diff(quantile(fsstotal, c(0.10, 0.90), na.rm = TRUE, names = FALSE)))  `
+for for severe TBI and only
+`r  with(subset(pedalfast, severetbi != 1), diff(quantile(fsstotal, c(0.10, 0.90), na.rm = TRUE, names = FALSE)))  `
+for mild or moderate TBI. To be included in this study, patients with "mild"
+TBI by GCS (13-15) had to be admitted to an ICU and receive a neurosurgical
+procedure in the first 24 hours. As expected, we found an inverse
+relationship between discharge FSS and admission GCS total and motor scores
+(Figure 2). Using linear regression, we estimated that for each 1 point
+higher admission GCS score, a patient's discharge FSS changes by
+`r  fss_by_gcs_ci["gcs_using"]  `
+points,
+`r  paste0(qwraps2::extract_fpvalue(fit), ".")  `
+
+## Discharge FSS and ICU Pupillary Reactivity
+
+Most,
+`r  paste0(n_perc(pedalfast$puplrcticu == "Both Reactive", na_rm = TRUE), ",")  `
+patients had bilaterally reactive pupils on admission to the ICU.  Of the
+`r  sum(pedalfast$puplrcticu == "Both Fixed", na.rm = TRUE)  `
+who had bilaterally fixed pupils on admission to the ICU,
+`r  with(subset(pedalfast, puplrcticu == "Both Fixed"), n_perc(hospdisposition == "Mortality"))  `
+died.  Among survivors, the mean &plusmn; standard deviation discharge FSS ranged from
+`r  with(subset(pedalfast, hospdisposition != "Mortality" & puplrcticu == "Both Reactive" & !is.na(fsstotal)), mean_sd(fsstotal))  `
+for those with bilaterally reactive pupils on ICU admission to
+`r  with(subset(pedalfast, hospdisposition != "Mortality" & puplrcticu == "Both Fixed" & !is.na(fsstotal)), mean_sd(fsstotal))  `
+for those with bilaterally fixed pupils on ICU admission.
+
+## Discharge FSS and Admission CT Features
+
+
+```{r }
+summary(pedalfast[, grep("^ct", names(pedalfast))])
+pedalfast$anyblood <- with(pedalfast, as.integer(ctintraparhem + ctsubarchhem + ctintraventhem + ctsubhematoma + ctepihematoma > 0))
+```
+
+
+`r  n_perc(pedalfast$ctskullfrac, show_denom = "never", na_rm = TRUE)  `
+patients had a skull fracture and most,
+`r  paste0(n_perc(pedalfast$anyblood, na_rm = TRUE, show_denom = "never"), ",")  `
+had at least one type of intracranial hemorrhage/hematoma. As expected,
+`r  with(subset(pedalfast, ctepihematoma == 1), n_perc(fsstotal < 8, show_denom = "always", na_rm = TRUE))  `
+children with epidural hematoma (EDH) had good functional status at
+hospital discharge (Figure 3) mean &plusmn; standard deviation FSS without EDH
+`r  with(subset(pedalfast, ctepihematoma == 0 & !is.na(fsstotal)), mean_sd(fsstotal))  `
+versus
+`r  with(subset(pedalfast, ctepihematoma == 1 & !is.na(fsstotal)), mean_sd(fsstotal))  `
+with EDH,
+`r  paste0(frmtp(t.test(fsstotal ~ ctepihematoma, data = pedalfast)$p.value), ".")  `
+Children with subdural (SDH), intraventricular (IVH), subarachnoid (SAH), or
+intraparenchymal hemorrhage (IPH) had more variable discharge functional
+status (Figure 3).  Multiple hemorrhage types were often,
+`r  with(pedalfast, paste0(n_perc(ctepihematoma + ctsubhematoma + ctintraparhem + ctsubarchhem + ctintraventhem > 1, na_rm = TRUE), ","))  `
+present.
+The surviving patient with the worst functional status, for example, had SDH,
+SAH, IVH, and IPH.
+Surviving children with either IVH or SAH had higher discharge FSS scores,
+mean &plusmn; standard deviation
+`r  with(subset(pedalfast, (ctintraventhem == 1 | ctsubarchhem == 1) & !is.na(fsstotal)), mean_sd(fsstotal))  `
+than those who did not
+`r  with(subset(pedalfast,!(ctintraventhem == 1 | ctsubarchhem == 1) & !is.na(fsstotal)), mean_sd(fsstotal))  `
+`r  paste0("(", frmtp(t.test(fsstotal ~ (ctintraventhem == 1 | ctsubarchhem == 1), data = pedalfast)$p.value), ").")  `
+
+CT findings of cerebral edema,
+`r  paste0(n_perc(pedalfast$ctce, na_rm = TRUE), ",")  `
+and those consistent with local or diffuse intracranial hypertension, such as
+basilar cistern compression,
+`r  paste0(n_perc(pedalfast$ctcompress, na_rm = TRUE), ",")  `
+and midline shift,
+`r  paste0(n_perc(pedalfast$ctmidlineshift, na_rm = TRUE), ",")  `
+were not uncommon.  Discharge FSS scores for patients with cerebral edema
+`r  paste0("(", with(subset(pedalfast, ctce == 1 & !is.na(fsstotal)), mean_sd(fsstotal)), ")")  `
+was higher than the mean discharge FSS cores for patients without cerebral
+edema,
+`r  paste0("(", with(subset(pedalfast, ctce == 0 & !is.na(fsstotal)), mean_sd(fsstotal)), ")")  `
+`r  paste0("(", frmtp(t.test(fsstotal ~ ctce, data = pedalfast)$p.value), ").")  `
+Similarly, patients with basilar cistern compression had higher mean
+discharged FSS cores than those who did not:
+`r  paste0("(", with(subset(pedalfast, ctcompress == 1 & !is.na(fsstotal)), mean_sd(fsstotal)), ")")  `
+verses
+`r  paste0("(", with(subset(pedalfast, ctcompress == 0 & !is.na(fsstotal)), mean_sd(fsstotal)), ")")  `
+`r  paste0("(", frmtp(t.test(fsstotal ~ ctcompress, data = pedalfast)$p.value), ").")  `
+Mean discharged FSS for midline shift
+`r  paste0("(", with(subset(pedalfast, ctmidlineshift == 1 & !is.na(fsstotal)), mean_sd(fsstotal)), ")")  `
+is not statistically different from the mean discharged FSS for patients
+without midline shift
+`r  paste0("(", with(subset(pedalfast, ctmidlineshift == 0 & !is.na(fsstotal)), mean_sd(fsstotal)), ")")  `
+`r  paste0("(", frmtp(t.test(fsstotal ~ ctmidlineshift, data = pedalfast)$p.value), ").")  `
+Patients who did and did not have these CT findings had widely
+varying discharge FSS values, from normal to severely impaired (Figure 5).
+
+Nearly all,
+`r  paste0(with(subset(pedalfast, severetbi == 0), n_perc(anyblood, na_rm = TRUE)), ",")  `
+patients with mild TBI had at least one type of intracranial hemorrhage.
+
+## Discharge FSS and New Technology Dependence
+
+More severely injured children may not be able to safely take adequate
+nutrition by mouth and may require placement of a new gastrostomy tube. Among
+survivors who received a new gastrostomy tube
+`r  with(subset(pedalfast, hospdisposition != "Mortality"), n_perc(newgastyn))  `
+during their acute hospitalization, the mean
+discharge FSS was much higher:
+`r  paste0("(", with(subset(pedalfast, !is.na(fsstotal) & hospdisposition != "Mortality" & newgastyn == 1), mean_sd(fsstotal)), ")")  `
+verses
+`r  paste0("(", with(subset(pedalfast, !is.na(fsstotal) & hospdisposition != "Mortality" & newgastyn == 0), mean_sd(fsstotal)), ").")  `
+`r  frmtp(t.test(fsstotal ~ newgastyn, data = pedalfast, subset = hospdisposition != "Mortality")$p.value)  `
+(Figure 4).
+In children with severe TBI,
+`r  with(subset(pedalfast, hospdisposition != "Mortality" & severetbi == 1), n_perc(newgastyn, na_rm = TRUE, show_denom = "always"))  `
+children had a new gastrostomy tube and of these, the mean discharge FSS was
+`r  paste0("(", with(subset(pedalfast, hospdisposition != "Mortality" & severetbi == 1 & newgastyn == 1), mean_sd(fsstotal)), ")")  `
+verses
+`r  paste0("(", with(subset(pedalfast, hospdisposition != "Mortality" & severetbi == 1 & newgastyn == 0), mean_sd(fsstotal, na_rm = TRUE, show_n = "never")), ")")  `
+in those who did not,
+`r  paste0(frmtp(t.test(fsstotal ~ newgastyn, data = pedalfast, subset = hospdisposition != "Mortality" & severetbi == 1)$p.value), ".")  `
+The distributions of discharge FSS values
+between patients who did and did not have a new gastrostomy tube separated
+well graphically: only those without new gastrostomy tubes had normal or
+mildly abnormal discharge FSS scores (Figure 4). Profoundly injured survivors
+may require a new tracheostomy. Of the
+`r  with(subset(pedalfast, hospdisposition != "Mortality"), n_perc(newtrachyn, show_denom = "always"))  `
+children who received a new tracheostomy,
+`r  with(subset(pedalfast, hospdisposition != "Mortality" & newtrachyn == 1), n_perc(newgastyn))  `
+also received a gastrostomy.  The mean &plusmn; discharge FSS was
+`r  paste0(with(subset(pedalfast, hospdisposition != "Mortality" & newtrachyn == 1), mean_sd(fsstotal)), ".")  `
+
+
+# References
+<div id="refs"></div>
+
+# Figures
+
+**Figure 1:** FSS Domain Scores at Hospital Discharge.  Histograms of
+Functional Status Scores (FSS) domain scores at hospital discharge.  A score
+of 1 represents no dysfunction, 2 is mild, 3 is moderate, 4 is severe, and 5
+is very severe dysfunction.
+
+
+```{r label = "figure1", warning = FALSE, fig.width = 7, fig.height = 7}
+# data.table::melt or tidyr::pivot_longer would make this data step much easier
+figure1_data <-
+  lapply(grep("^fss(?!total)", names(pedalfast), perl = TRUE, value = TRUE),
+         function(x) data.frame(variable = x, value = pedalfast[, x]))
+figure1_data <- do.call(rbind, figure1_data)
+
+ggplot(figure1_data) +
+  aes(x = value, y = (..count..)/sum(..count..)) +
+  geom_bar() +
+  facet_wrap( ~ variable) +
+  theme_classic(base_size = 18) +
+  ylab("") +
+  scale_y_continuous(labels = scales::percent)
+```
+
+
+**Figure 2:** Discharge FSS by Admission GCS.  FSS = Functional Status Scale;
+GCS = Glasgow Coma Scale. A FSS score of six represents no dysfunction.
+
+
+```{r label = "figure2", warning = FALSE, fig.width = 7, fig.height = 7}
+ggplot(pedalfast) +
+  aes(x = gcs_using, y = fsstotal) +
+  stat_sum(aes(size = ..n..), alpha = 0.2) +
+  scale_size_area(breaks = c(5, 10, 15), "Count", max_size = 7) +
+  stat_smooth(method = "lm", formula = y ~ x, size = 0.5, alpha = 0.4, level = 0.95, color = "black", linetype = 2) +
+  scale_x_continuous(breaks = seq(3, 15, 1)) +
+  scale_y_continuous(breaks = c(6, 10, 15, 20, 25), limits = c(5, 25)) +
+  xlab("Glasgow Coma Scale") +
+  ylab("Discharge FSS") +
+  theme_classic(base_size = 16) +
+  theme(legend.position = c(0.9, 0.9))
+```
+
+
+**Figure 3:** Discharge FSS by Intracranial Hemorrhage Type.  A FSS score of
+6 represents no dysfunction.
+
+
+```{r label = "figure3", warning = FALSE, fig.width = 7, fig.height = 7}
+figure3_data <-
+  lapply(grep("^ct.+(hem|toma)$", names(pedalfast), perl = TRUE, value = TRUE),
+         function(x) data.frame(studyid = pedalfast[["studyid"]],
+                                fsstotal = pedalfast[["fsstotal"]],
+                                variable = x,
+                                value = pedalfast[, x]))
+figure3_data <- do.call(rbind, figure3_data)
+
+figure3_data$variable <-
+  factor(figure3_data$variable,
+         levels = c("ctintraparhem", "ctsubarchhem", "ctintraventhem", "ctsubhematoma", "ctepihematoma"),
+         labels = c("Intraparenchymal\nHemorrhage", "Subarachnoid\nHemorrhage", "Intraventricular\nHemorrhage", "Subdural Hematoma", "Epidural Hematoma"))
+
+ggplot(data = figure3_data) +
+  aes(x = fsstotal, fill = as.factor(value)) +
+  geom_bar() +
+  facet_wrap( ~ variable) +
+  scale_fill_manual(name = "Hemorrhage", labels = c("No", "Yes"), values = c("grey", "black")) +
+  xlim(5.5,30.5) +
+  xlab("Discharge FSS") +
+  ylab("Count") +
+  theme_classic(base_size=16) +
+  theme(legend.position = "bottom")
+```
+
+
+**Figure 4:** Discharge FSS by New Gastrostomy Status.  Legend: FSS =
+Functional Status Scale; G-Tube = gastrostomy tube; TBI = traumatic brain
+injury. A FSS score of 6 represents no dysfunction.
+
+
+```{r label = "figure4", warning = FALSE, fig.width = 7, fig.height = 7}
+figure4_data <-
+  rbind(cbind(cp = "All TBI", pedalfast[, c("fsstotal", "newgastyn")]),
+        cbind(cp = "Non-Severe TBI", subset(pedalfast, severetbi == 0, c("fsstotal", "newgastyn"))),
+        cbind(cp = "Severe TBI",     subset(pedalfast, severetbi == 1, c("fsstotal", "newgastyn"))))
+figure4_data$cp <- factor(figure4_data$cp, levels = c("All TBI", "Non-Severe TBI", "Severe TBI"))
+
+ggplot(data = figure4_data) +
+  aes(x = fsstotal, fill = newgastyn) +
+  geom_histogram(binwidth = 1, bins = seq(5.5, 30.5, by = 1)) +
+  scale_fill_manual(name = "New G-Tube", values = c("gray", "black")) +
+  xlim(5.5,30.5) +
+  xlab("Discharge FSS") +
+  ylab("Count") +
+  theme_classic(base_size=20) +
+  theme(legend.position = "bottom") +
+  facet_wrap( ~ cp)
+```
+
+
+**Figure 5:** Discharge FSS by CT imaging.  The violin plots show the
+distribution of FSS scores, the wider the plot the more common the FSS value
+is.  The point shown on each plot is the mean discharge FSS score.
+
+
+```{r label = "figure5", warning = FALSE, fig.width = 7, fig.height = 7}
+ggplot(data = subset(figure3_data, !is.na(value))) +
+  aes(y = fsstotal, x = factor(value, c(0, 1), c("No", "Yes"))) +
+  geom_violin() +
+  stat_summary(fun = mean, geom = "point") +
+  xlab("") +
+  ylab("Discharge FSS") +
+  facet_wrap( ~ variable) +
+  theme_classic(base_size=16) +
+  theme(legend.position = "bottom")
+```
+
+
+# Tables
+
+**Table 1** Patient and Injury Characteristics.  Summary statistics are
+either mean &plusmn; standard deviation, or n (%).
+
+
+```{r label = "table1", results = 'asis'}
+qs <- list(
+             "Patient Characteristics" =
+               list("Age (in years)" = ~ mean_sd(age / 365.25),
+                    "Female"         = ~ n_perc0(female == 1))
+           , "Injury Mechanism" = qsummary(subset(pedalfast, select = "injurymech"))[[1]]
+           , "TBI Severity" =
+               list("GCS = 3"             = ~ n_perc0(gcs_using == 3),
+                    "Severe (GCS 3-8)"    = ~ n_perc0(gcs_using %in% seq(3, 8)),
+                    "Moderate (GCS 9-12)" = ~ n_perc0(gcs_using %in% seq(9, 12)),
+                    "Mild (GCS 13-15)"    = ~ n_perc0(gcs_using %in% seq(13, 15))
+                   )
+           , "GCS Eye"    = qsummary(subset(pedalfast, select = "gcseye_using_cat"))[[1]]
+           , "GCS Verbal" = qsummary(subset(pedalfast, select = "gcsverbal_using_cat"))[[1]]
+           , "GCS Motor"  = qsummary(subset(pedalfast, select = "gcsmotor_using_cat"))[[1]]
+           , "Pupil Reactivity on ICU admission" = qsummary(subset(pedalfast, select = "puplrcticu"))[[1]]
+           , "Initial ICU LOS" = list("median (IQR) (days)" = ~ median_iqr(admittoicudc1, na_rm = TRUE, digits = 0))
+           , "Hospital LOS" = list("median (IQR) (days)" = ~ median_iqr(hosplos, na_rm = TRUE, digits = 0))
+           , "Hospital Disposition" = qsummary(subset(pedalfast, select = "hospdisposition"))[[1]]
+           )
+
+# NOTE: the levels of Pupil Reactivity in the ICU include "Unknown" which is
+# qwraps2::qsummary default label for NA values.  A patch is provided here, a
+# bug report and feature request for qwraps2 has been posted on github.
+names(qs[["Pupil Reactivity on ICU admission"]])[ length( names(qs[["Pupil Reactivity on ICU admission"]]) )] <- "Missing"
+
+# print the summary table
+st <-
+  cbind(summary_table(pedalfast, summaries = qs),
+        summary_table(pedalfast, summaries = qs, by = "severetbi"))
+
+colnames(st) <-
+  c("Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
+
+st
+```
+
+
+**Table 2:** Hospital Discharge FSS
+
+
+```{r label = "table2", results = "asis"}
+qs <- list(
+             "FSS Total" =
+               list("median (IQR)" = ~ median_iqr(fsstotal, show_n = "never", na_rm = TRUE, digits = 0),
+                    "mean (standard deviation)"    = ~ mean_sd(fsstotal, show_n = "never", na_rm = TRUE, digits = 0))
+           , "FSS Total - Categorical: n (%)" = qsummary(subset(pedalfast, select = "fsstotal_cat2"))[[1]]
+           , "FSS Mental"        = list("n; Median (IQR)" = ~ median_iqr(fssmental, na_rm = TRUE))
+           , "FSS Motor"         = list("n; Median (IQR)" = ~ median_iqr(fssmotor, na_rm = TRUE))
+           , "FSS Sensory"       = list("n; Median (IQR)" = ~ median_iqr(fsssensory, na_rm = TRUE))
+           , "FSS Respiratory"   = list("n; Median (IQR)" = ~ median_iqr(fssresp, na_rm = TRUE))
+           , "FSS Feeding"       = list("n; Median (IQR)" = ~ median_iqr(fssfeeding, na_rm = TRUE))
+           , "FSS Communication" = list("n; Median (IQR)" = ~ median_iqr(fsscommun, na_rm = TRUE))
+           )
+
+
+st <-
+  cbind(summary_table(pedalfast, summaries = qs),
+        summary_table(pedalfast, summaries = qs, by = "severetbi"))
+
+colnames(st) <-
+  c("Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
+
+st
+```
+
+
+**Appendix Table 1**  Functional Status Scale Domains
+
+The FSS has 6 domains: Mental, Sensory, Communication, Motor, Feeding, and Respiratory.
+The scale in each domain is from 1 (no dysfunction) to 5 (very severe dysfunction), with
+a total score from 6 (normal) to 30 (very severe dysfunction in all domains).
+Appendix Table 1 shows the 6 domains and the 5 levels within each domain.
+
+
+```{r label = 'appendix_table_1', results = "asis"}
+
+appendix_table_1 <-
+  subset(pedalfast_metadata,
+         variable %in% grep("^fss(?!total)", pedalfast_metadata$variable, perl = TRUE, value = TRUE))
+
+appendix_table_1 <-
+  cbind(appendix_table_1, do.call(rbind, strsplit(gsub("\\d,\\ ", "", appendix_table_1$values), split = "\\ \\|\\ ")))
+
+appendix_table_1 <- appendix_table_1[, c("description", as.character(1:5))]
+colnames(appendix_table_1) <-
+  c("",
+    "Normal (Score = 1)",
+    "Mild Dysfunction (Score = 2)",
+    "Moderate Dysfunction (Score = 3)",
+    "Severely Dysfunction (Score = 4)",
+    "Severely Dysfunction (Score = 5)")
+
+knitr::kable(appendix_table_1, row.names = FALSE)
+```
+
+
+# R Session Info
+
+
+```{r label = "session_info"}
+sessionInfo()
+```
+

@@ -1,0 +1,658 @@
+---
+title: "PEDALFAST Data"
+output:
+ rmarkdown::html_document:
+   number_section: true
+   toc: true
+   toc_depth: 2
+   toc_float: true
+bibliography: references.bib
+vignette: >
+ %\VignetteIndexEntry{pedalfast-datasets}
+ %\VignetteEngine{knitr::rmarkdown}
+ %\VignetteEncoding{UTF-8}
+---
+
+
+```{r label = "editing_note", eval = FALSE, include = TRUE, echo = FALSE, results = "hide"}
+# ############################################################################ #
+#                              **IMPORTANT NOTE**
+#
+# If you are reading this comment in a .Rmd file **DO NOT EDIT THE FILE**  The
+# vignette was written in the source package under the
+# vignette-spinners/datasets.R file.  Any changes to this vignette need to be
+# made in that file.
+#
+# Edits made to the vignettes/datasets.Rmd file will not be preserved during the
+# build process for the package.
+#
+#                              **IMPORTANT NOTE**
+# ############################################################################ #
+```
+
+
+<style>
+pre code, pre, code {
+ white-space: pre !important;
+ overflow-x: scroll !important;
+ word-break: keep-all !important;
+ word-wrap: initial !important;
+ max-height: 300px;
+}
+</style>
+
+
+```{r label = "setup", include = FALSE}
+options(qwraps2_markup = "markdown")
+knitr::opts_chunk$set(collapse = TRUE)
+```
+
+
+# Introduction
+
+The PEDALFAST (**PED**iatric v**AL**idation o**F** v**A**riable**S** in
+**TBI**) project was a prospective cohort study conducted at multiple American
+College of Surgeons freestanding level I Pediatric Trauma Centers.  The cohort
+consists of patients under 18 years of age who were admitted to the intensive
+care unit (ICU) with an acute traumatic brain injury (TBI) diagnosis and
+Glasgow Coma Scale (GCS) score not exceeding 12 or a neurosurgical procedure
+(intracranial pressure [ICP] monitor, external ventricular drain [EVD],
+craniotomy, or craniectomy) within the first 24 hours of admission.
+
+This data set was used for several publications:
+
+* @Bennett2017icp
+* @Bennett2017codes
+* @Bennett2016fss
+
+Funded by NICHD grant number R03HD094912 we retroactively mapped the data
+collected by the PEDALFAST project the [Federal Interagency Traumatic Brain
+Injury Research (FITBIR)](https://fitbir.nih.gov/) data standard.  The R data
+package
+`r  qwraps2::Rpkg(pedalfast.data)  `
+provides the data submitted to FITBIR as both raw files
+and in ready to use R data sets.
+
+The PEDALFAST study data were collected and managed using REDCap electronic
+data capture tools hosted at the University of Colorado Denver.
+[@harris2009research] REDCap (Research Electronic Data Capture) is a secure,
+web-based application designed to support data capture for research studies,
+providing 1) an intuitive interface for validated data entry; 2) audit trails
+for tracking data manipulation and export procedures; 3) automated export
+procedures for seamless data downloads to common statistical packages; and 4)
+procedures for importing data from external sources.
+
+This vignette documents the provided data set and other utilities of this
+package.
+
+
+# Provided Data Sets
+
+The
+`r  qwraps2::Rpkg(pedalfast.data)  `
+package provides the following data objects:
+
+
+```{r label = "list_exported_datasets"}
+data(package = "pedalfast.data")$results[, c("Item", "Title")]
+```
+
+
+Each of these objects will be described in detail in the following sections.
+
+The provided data sets are data.frames.  Examples for working with the
+provided data sets will be done using base R, the
+[tidyverse](https://www.tidyverse.org), and
+[data.table](https://github.com/Rdatatable/data.table/wiki). Click the
+following buttons to have the different data paradigms displayed or not while
+reading this vignette.
+
+
+# PEDALFAST Data
+
+The data collected during the PEDALFAST study has been provided in two
+data.frames so the end user may opt into using another paradigm such as
+`r  qwraps2::CRANpkg(data.table)  `
+or the [tidyverse](https://www.tidyverse.org/).  The following will focus on
+use of base R methods only.
+
+Reproduction of the examples in this vignette will require the following
+namespaces.
+
+
+```{r label = "pedalfast_data"}
+library(pedalfast.data)
+```
+
+
+Load the provided data sets into the active session via data as follows.
+
+
+```{r }
+data(pedalfast,          package = "pedalfast.data")
+data(pedalfast_metadata, package = "pedalfast.data")
+
+str(pedalfast,          max.level = 0)
+str(pedalfast_metadata, max.level = 0)
+```
+
+
+The
+`r  qwraps2::backtick(pedalfast)  `
+is a data frame with each row reporting the collected data for one
+subject, and each column being a unique variable.  The
+`r  qwraps2::backtick(pedalfast_metadata)  `
+data frame is a selection of columns from the data dictionary provided by a
+REDCap export of the project.  In the following you will find examples of
+specific utilities provided in this package to make formatting the data
+easier.
+
+Let's look at the first three columns of pedalfast, and the first three rows
+of pedalfast\_metadata.
+
+```{r }
+head(pedalfast[, 1:3])
+pedalfast_metadata[1:3, ]
+```
+
+
+The first column of
+`r  qwraps2::backtick(pedalfast)  `
+is the studyid, and the first row of
+`r  qwraps2::backtick(pedalfast_metadata)  `
+is the documentation for the studyid.  Similarly, the
+second column of
+`r  qwraps2::backtick(pedalfast)  `
+and second row of
+`r  qwraps2::backtick(pedalfast_metadata)  `
+are for the age of the patient.  The first notable change in is in the third row of the
+`r  qwraps2::backtick(pedalfast_metadata)  `
+where the indicator for
+`r  pedalfast_metadata[3, "variable"]  `
+is documented including the mapping from integer to English:
+`r  pedalfast_metadata[3, "values"]  `
+
+The rest of this section of the vignette provides details on each of the
+variables in the data set and provides some examples for data use.
+
+## Study ID
+
+The PEDALFAST data was collected at multiple sites.  The study id provided is
+a patient specific random number between 100 and 999 with no mapping to the
+sites.  That is, you should not be able to determine which site provided a
+specific row of data.
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable == "studyid"))
+str(pedalfast$studyid)
+```
+
+
+## Age
+
+Age of the patient is reported in days.
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable == "age"))
+summary(pedalfast$age)          # in days
+summary(pedalfast$age / 365.25) # in years
+```
+
+
+The PEDALFAST data has been submitted to the [Federal Interagency Traumatic
+Brain Injury Research (FITBIR) Informatics System](https://fitbir.nih.gov/).
+As part of that submission age of the patient was to be reported as the floor
+of the patients age in years with the exception of those under one year of
+age.  For those under one year of age the reported value was to be the
+truncated three decimal age in years.  For example, a patient more than one
+month but less than two months would have a reported age of 0.083 (1/12), a 8
+month old would have a reported age of 0.666 (8/12).  Note the truncation of
+the decimal.  If you require the same rounding scheme we have provided a
+function in this package
+`r  qwraps2::backtick(round_age)  `
+to provide the rounding with the truncation.  The function will return age as
+a character by default, a numeric value will be returned when specified.
+
+```{r }
+fitbir_ages <-
+  data.frame(age  = pedalfast$age / 365.25,
+             char = round_age(pedalfast$age / 365.25),
+             num  = round_age(pedalfast$age / 365.25, type = "numeric"))
+
+plot(fitbir_ages$age, fitbir_ages$num, xlab = "Age (years)", ylab = "FITBIR Age (Years)")
+```
+
+
+## Female/Male
+
+The variable female is an indicator for sex/gender.  The category of
+female/male was made by the attending physicians or reported by the
+patient/caregivers.  This variable was not determined by sex chromosomes
+genotyping.  The intent was to report sex but gender, the social constructed
+identify of sex, might be more appropriate.
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable == "female"))
+sum(pedalfast$female)
+mean(pedalfast$female)
+```
+
+
+## Injury
+
+Three variables related to injury. The source of information for the injury
+and the injury mechanism (injurymech) are both categorical variables with
+known values and are presented as character vectors in the pedalfast
+data.frame.  The time from injury to admission (injurytoadmit) is reported in
+days, if the date of injury was known.
+
+```{r }
+inj_vars <- c("sourceinj", "injurytoadmit", "injurymech")
+knitr::kable(subset(pedalfast_metadata, variable %in% inj_vars))
+summary(pedalfast[, inj_vars])
+```
+
+
+The injurymech is a character vector by default so the end user may build a
+factor as needed.
+
+```{r }
+table(pedalfast$injurymech, useNA = "always")
+```
+
+
+## Emergency Department
+
+Several variables were collected in both the emergency department (ED) and
+the intensive care unit (ICU).  The following are the notes for the variables
+collected in the ED.
+
+### GCS
+
+The Glasgow Coma Score was assessed in one or both of the Emergency
+Department (ED) and the ICU.  There are several variables noted here for GCS
+with the suffix 'ed' which are also reported later from the ICU with the
+suffix 'icu'.
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, grepl("^gcs.*ed$", variable)))
+summary(pedalfast[, grep("^gcs.*ed$", names(pedalfast))])
+```
+
+
+GCS for the eye, verbal, and motor can be used as both numeric
+values (as reported in the pedalfast data.frame) or as a categorical
+variable.  The
+`r  qwraps2::Rpkg(pedalfast.data)  `
+package provides functions for quickly mapping from the numeric values to a
+factor for gcs.  The functions
+`r  qwraps2::backtick(gcs_as_integer)  `
+and
+`r  qwraps2::backtick(gcs_as_factor)  `
+
+While GCS is a common assessment, the specific language used may vary.  By
+providing these functions we are able to report the exact language used on
+the assessment.
+
+Lower numeric values of GCS correspond to lower neurological functioning.
+To illustrate this consider, mapping the integer values 1 through 6 to the
+labels for the GCS scales:
+
+```{r }
+knitr::kable(
+             data.frame(integers = 1:6,
+                        eye      = gcs_as_factor(1:6, scale = "eye"),
+                        motor    = gcs_as_factor(1:6, scale = "motor"),
+                        verbal   = gcs_as_factor(1:6, scale = "verbal"))
+)
+```
+
+
+By default, the mapping of the integer values to factor levels will map the
+the integer value of 1 to level 1.  The argument
+`r  qwraps2::backtick(highest_first)  `
+will reverse the order of the levels.  This option has been provided to help
+make setting a logical reference level for modeling.  For example, say we
+want to estimate hospital length of stay by the motor GCS score.
+
+```{r }
+gcs_example_data <-
+  data.frame(los = pedalfast$hosplos,
+             motor_int = pedalfast$gcsmotored,
+             motor_f1  = gcs_as_factor(pedalfast$gcseyeed, scale = "eye"),
+             motor_f2  = gcs_as_factor(pedalfast$gcseyeed, scale = "eye", highest_first = TRUE))
+
+head(gcs_example_data)
+```
+
+
+Just looking at the summary of the example data set shows the order of the
+factor is different
+
+```{r }
+summary(gcs_example_data)
+```
+
+
+Thus, simple regression models will use either "no response" or "spontaneous"
+as the reference level.  Pick the one you want to use.
+
+```{r }
+summary(lm(los ~ motor_int, data = gcs_example_data))$coef
+summary(lm(los ~ motor_f1,  data = gcs_example_data))$coef
+summary(lm(los ~ motor_f2,  data = gcs_example_data))$coef
+```
+
+
+The total GCS score is provided.
+
+```{r }
+summary(pedalfast$gcsed)
+```
+
+
+Be careful with factors.  Recall that factors are numeric vectors with the
+first level mapped to the value one, regardless if that is logical or not.
+Thus:
+
+```{r }
+identical(pedalfast$gcsed,
+          pedalfast$gcseyeed + pedalfast$gcsmotored + pedalfast$gcsverbaled)
+
+identical(pedalfast$gcsed,
+          as.integer(gcs_as_factor(pedalfast$gcseyeed, "eye")) +
+          as.integer(gcs_as_factor(pedalfast$gcsmotored, "motor")) +
+          as.integer(gcs_as_factor(pedalfast$gcsverbaled, "verbal")))
+
+identical(pedalfast$gcsed,
+          as.integer(gcs_as_factor(pedalfast$gcseyeed, "eye", highest_first = TRUE)) +
+          as.integer(gcs_as_factor(pedalfast$gcsmotored, "motor", highest_first = TRUE)) +
+          as.integer(gcs_as_factor(pedalfast$gcsverbaled, "verbal", highest_first = TRUE)))
+```
+
+
+### Disposition
+
+Disposition form the emergency department:
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable == "eddisposition"))
+table(pedalfast$eddisposition, useNA = "always")
+```
+
+
+## Imaging
+
+If the patient had CT imaging the information is provided in one of the
+variables prefixed by "ct" with the exception of the time from admission to
+ct.
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, grepl("^(admitto)*ct", variable)))
+head(pedalfast[, grepl("^(admitto)*ct", names(pedalfast))])
+summary(pedalfast[, grepl("^(admitto)*ct", names(pedalfast))])
+```
+
+
+## ICU
+
+There are several variables groups from the ICU.
+
+### Source of information
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable == "sourceicu"))
+table(pedalfast$sourceicu, useNA = "always")
+```
+
+
+### Pupil Reactivity
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable == "puplrcticu"))
+table(pedalfast$puplrcticu, useNA = "always")
+```
+
+
+### GCS
+
+GCS in the ICU are similar variables as where noted in the emergency
+department.  Variable names are appended by "icu" for the values attended in
+the ICU
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, grepl("^gcs.*icu$", variable)))
+summary(pedalfast[, grepl("^gcs.*icu$", names(pedalfast))])
+```
+
+
+### Discharge and Readmission to the ICU
+
+The variable admitttoicudc1 is the number of days from admission to discharge
+from the ICU.  If the patient had a readmission to the ICU then the first
+readmission (second overall admission) occurred admittoicuadmit2 days from
+admission.  The duration of the first readmission (second overall admission)
+would be the difference between admitttoicudc2 and admittoicuadmit2.
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, grepl("^admittoicu", variable)))
+summary(pedalfast[, grepl("^admittoicu", names(pedalfast))])
+```
+
+
+## Mechanical Ventilation
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("ventyn", "admittoint", "admittoext")))
+summary(pedalfast[, c("ventyn", "admittoint", "admittoext")])
+```
+
+
+## Intracranial pressure (ICP) monitors
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, grepl("^(admitto)*icp.+\\d", variable)))
+summary(pedalfast[pedalfast$icpyn1 == 1, grepl("^(admitto)*icp.+\\d", names(pedalfast))])
+```
+
+
+ICP monitor types:
+
+```{r }
+table(pedalfast$icptype1)
+```
+
+
+## Invasive Vascular Catheters
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, grepl("^(admitto)*cath.+\\d", variable)))
+```
+
+
+First catheter
+
+```{r }
+summary(
+  subset(pedalfast,
+         !is.na(cathtype1),
+         select = grep("cath.*1$", names(pedalfast)))
+)
+table(pedalfast$cathtype1)
+```
+
+
+Second catheter
+
+```{r }
+summary(
+  subset(pedalfast,
+         !is.na(cathtype2),
+         select = grep("cath.*2$", names(pedalfast)))
+)
+table(pedalfast$cathtype2)
+```
+
+
+Third catheter
+
+```{r }
+summary(
+  subset(pedalfast,
+         !is.na(cathtype3),
+         select = grep("cath.*3$", names(pedalfast)))
+)
+table(pedalfast$cathtype3)
+```
+
+
+Fourth catheter
+
+```{r }
+summary(
+  subset(pedalfast,
+         !is.na(cathtype4),
+         select = grep("cath.*4$", names(pedalfast)))
+)
+table(pedalfast$cathtype4)
+```
+
+
+## Tracheostomy
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("newtrachyn", "admittotrach")))
+summary(pedalfast[pedalfast$newtrachyn == 1, c("newtrachyn", "admittotrach")])
+```
+
+
+## Gastrostomy
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("newgastyn", "admittogast")))
+summary(pedalfast[pedalfast$newgastyn == 1, c("newgastyn", "admittogast")])
+```
+
+
+## Decompressive craniectomy
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("decomcranyn", "admittocrani")))
+summary(pedalfast[pedalfast$decomcranyn == 1, c("decomcranyn", "admittocrani")])
+```
+
+
+## Lumbar Drain
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("lmbrdrainyn", "admittolmbdrain")))
+summary(pedalfast[pedalfast$lmbrdrainyn == 1, c("lmbrdrainyn", "admittolmbdrain")])
+```
+
+
+## Epidural Hematoma Evacuated
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("epihemyn", "admittoedhevac")))
+summary(pedalfast[pedalfast$epihemyn == 1, c("epihemyn", "admittoedhevac")])
+```
+
+
+## Subdural Hematoma Evacuated
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("subhemyn", "admittosdhevac")))
+summary(pedalfast[pedalfast$subhemyn == 1, c("subhemyn", "admittosdhevac")])
+```
+
+
+## Medications
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, grepl("^rx", variable)))
+summary(pedalfast[, grepl("^rx", names(pedalfast))])
+```
+
+
+## TPN
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("tpnyn", "admittotpn")))
+summary(pedalfast[pedalfast$tpnyn == 1, c("tpnyn", "admittotpn")])
+```
+
+
+## Enteral Nutrition
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("entnutyn", "admittoentnut")))
+summary(pedalfast[pedalfast$entnutyn == 1, c("entnutyn", "admittoentnut")])
+```
+
+
+## Hospital LOS and Disposition
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, variable %in% c("hosplos", "hospdisposition")))
+summary(pedalfast[, c("hosplos", "hospdisposition")])
+table(pedalfast$hospdisposition, useNA = "always")
+```
+
+
+## Cardiac Arrest
+
+Indicator and location for cardiac arrest.
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, grepl("^cardiac", variable)))
+summary(pedalfast[, grepl("^cardiac", names(pedalfast))])
+```
+
+
+## Functional Status Scale
+
+
+```{r }
+knitr::kable(subset(pedalfast_metadata, grepl("fss", variable)))
+summary(pedalfast[, grepl("fss", names(pedalfast))])
+```
+
+
+
+# Mapping PEDALFAST to FITBIR
+
+The PEDALFAST data sets have been organized, submitted, and 
+published via the [Federal Interagency Traumatic Brain Injury
+Research (FITBIR) Informatics System](https://fitbir.nih.gov/).
+
+
+# Funding
+
+The mapping of PEDALFAST data to FITBIR and the construction and release of
+this R package was funded in part by NIH grant R03HD094912.
+
+The PEDALFAST project was funded in part by NICHD grant number K23HD074620.
+
+# References
+
+<div id="refs"></div>
+
