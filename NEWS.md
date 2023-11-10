@@ -1,3 +1,8 @@
+# pedalfast.data 1.0.1
+
+* minor change to the fss vignette to account for update of qwraps2 from v0.5.x
+  to v0.6.0.
+
 # pedalfast.data 1.0.0
 
 * Initial release

@@ -90,7 +90,7 @@ variables here with the GCS categories documented in the metadata.
 
 
 
-```{r }
+```{r}
 pedalfast$gcseye_using_cat    <- gcs_as_factor(pedalfast$gcseye_using, "eye")
 pedalfast$gcsmotor_using_cat  <- gcs_as_factor(pedalfast$gcsmotor_using, "motor")
 pedalfast$gcsverbal_using_cat <- gcs_as_factor(pedalfast$gcsverbal_using, "verbal")
@@ -100,7 +100,7 @@ pedalfast$gcsverbal_using_cat <- gcs_as_factor(pedalfast$gcsverbal_using, "verba
 **GCS Severe**
 Severe TBI will be defined as a GCS of eight or less.
 
-```{r }
+```{r}
 pedalfast$severetbi <- as.integer(pedalfast$gcs_using <= 8)
 ```
 
@@ -109,7 +109,7 @@ pedalfast$severetbi <- as.integer(pedalfast$gcs_using <= 8)
 
 The FSS total score is the sum of the six fss subscales.
 
-```{r }
+```{r}
 fsscols <- grep("^fss", names(pedalfast), value = TRUE)
 fsscols
 
@@ -121,14 +121,14 @@ summary(pedalfast$fsstotal)
 Looking into the missing values, most are associated with hospital
 disposition of mortality.
 
-```{r }
+```{r}
 with(pedalfast, table(hospdisposition, is.na(fsstotal)))
 ```
 
 
 The FSS total score can be placed into categories:
 
-```{r }
+```{r}
 pedalfast$fsstotal_cat  <- fss_as_factor(pedalfast$fsstotal, long_label = FALSE)
 pedalfast$fsstotal_cat2 <- fss_as_factor(pedalfast$fsstotal, long_label = TRUE)
 
@@ -427,7 +427,7 @@ respectively.
 ## Discharge FSS by Age, Injury Mechanism
 
 
-```{r }
+```{r}
 fit <- lm(fsstotal ~ injurymech + 0 + I(age / 365.25), data = pedalfast)
 summary(fit)
 car::Anova(fit, type = 2)
@@ -457,7 +457,7 @@ for children injured by other mechanisms.
 ## Discharge FSS and Admission GCS
 
 
-```{r }
+```{r}
 fit <- lm(fsstotal ~ gcs_using, data = pedalfast)
 fss_by_gcs_ci <- qwraps2::frmtci(cbind(coef(fit), confint(fit)), show_level = TRUE)
 
@@ -514,7 +514,7 @@ for those with bilaterally fixed pupils on ICU admission.
 ## Discharge FSS and Admission CT Features
 
 
-```{r }
+```{r}
 summary(pedalfast[, grep("^ct", names(pedalfast))])
 pedalfast$anyblood <- with(pedalfast, as.integer(ctintraparhem + ctsubarchhem + ctintraventhem + ctsubhematoma + ctepihematoma > 0))
 ```
@@ -770,7 +770,7 @@ st <-
         summary_table(pedalfast, summaries = qs, by = "severetbi"))
 
 colnames(st) <-
-  c("Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
+  c("", "Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
 
 st
 ```
@@ -796,10 +796,11 @@ qs <- list(
 
 st <-
   cbind(summary_table(pedalfast, summaries = qs),
-        summary_table(pedalfast, summaries = qs, by = "severetbi"))
+        summary_table(pedalfast, summaries = qs, by = "severetbi")
+  )
 
 colnames(st) <-
-  c("Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
+  c("", "Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
 
 st
 ```

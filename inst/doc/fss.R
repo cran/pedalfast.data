@@ -231,7 +231,7 @@ st <-
         summary_table(pedalfast, summaries = qs, by = "severetbi"))
 
 colnames(st) <-
-  c("Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
+  c("", "Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
 
 st
 
@@ -252,10 +252,11 @@ qs <- list(
 
 st <-
   cbind(summary_table(pedalfast, summaries = qs),
-        summary_table(pedalfast, summaries = qs, by = "severetbi"))
+        summary_table(pedalfast, summaries = qs, by = "severetbi")
+  )
 
 colnames(st) <-
-  c("Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
+  c("", "Whole Cohort", "Non-severe TBI (GCS > 8)", "Severe TBI (GCS <= 8)")
 
 st
 
