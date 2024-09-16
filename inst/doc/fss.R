@@ -2,7 +2,7 @@
 knitr::opts_chunk$set(collapse = TRUE)
 
 ## ----label = "system-location-of-vignette", eval = FALSE----------------------
-#  system.file("doc/fss.Rmd", package = "pedalfast.data")
+#  system.file("doc", "fss.Rmd", package = "pedalfast.data")
 
 ## ----label = "namespaces"-----------------------------------------------------
 library(pedalfast.data)
@@ -15,22 +15,18 @@ data(pedalfast, pedalfast_metadata)
 
 ## ----label = "build-gcsusing"-------------------------------------------------
 # gather all the gcs values form the ed.
-gcs_ed_vars <- grep("^gcs.*ed$", names(pedalfast), value = TRUE)
+gcs_ed_vars <- grep("^gcs(?!yn).*ed$", names(pedalfast), value = TRUE, perl = TRUE)
 gcs_ed_vars
 
-# create a set of gcs _using variables.
+# create a set of gcs _using variables.  This could be done using the
+# data.table::fcoalesce function.  Base R code is provided here:
 for(j in gcs_ed_vars) {
   pedalfast[[sub("ed$", "_using", j)]] <-
     ifelse(is.na(pedalfast[[j]]), pedalfast[[ sub("ed$", "icu", j) ]], pedalfast[[j]])
 }
 
-summary(pedalfast$gcs_using)
-
-# Inspect the rows with missing values:
-pedalfast[is.na(pedalfast$gcs_using), ]
-
-## ----label = "subset-via-gcsusing"--------------------------------------------
-pedalfast <- subset(pedalfast, !is.na(gcs_using))
+# verify there are no missing values
+stopifnot(!any(is.na(pedalfast$gcs_using)))
 
 ## -----------------------------------------------------------------------------
 pedalfast$gcseye_using_cat    <- gcs_as_factor(pedalfast$gcseye_using, "eye")
@@ -97,9 +93,9 @@ colSums(score_mode)
 apply(score_mode[, -7], 1, which.max)
 
 ## -----------------------------------------------------------------------------
-fit <- lm(fsstotal ~ injurymech + 0 + I(age / 365.25), data = pedalfast)
+fit <- lm(fsstotal ~ injurymech + I(age / 365.25) - 1, data = pedalfast)
 summary(fit)
-car::Anova(fit, type = 2)
+summary(aov(fit))
 fsstotal_lm_cis <- qwraps2::frmtci(cbind(coef(fit), confint(fit)), show_level = TRUE)
 fsstotal_lm_cis
 
@@ -137,13 +133,13 @@ ggplot(pedalfast) +
   aes(x = gcs_using, y = fsstotal) +
   stat_sum(aes(size = ..n..), alpha = 0.2) +
   scale_size_area(breaks = c(5, 10, 15), "Count", max_size = 7) +
-  stat_smooth(method = "lm", formula = y ~ x, size = 0.5, alpha = 0.4, level = 0.95, color = "black", linetype = 2) +
+  stat_smooth(method = "lm", formula = y ~ x, linewidth = 0.5, alpha = 0.4, level = 0.95, color = "black", linetype = 2) +
   scale_x_continuous(breaks = seq(3, 15, 1)) +
   scale_y_continuous(breaks = c(6, 10, 15, 20, 25), limits = c(5, 25)) +
   xlab("Glasgow Coma Scale") +
   ylab("Discharge FSS") +
   theme_classic(base_size = 16) +
-  theme(legend.position = c(0.9, 0.9))
+  theme(legend.position.inside = c(0.9, 0.9))
 
 ## ----label = "figure3", warning = FALSE, fig.width = 7, fig.height = 7--------
 figure3_data <-

@@ -43,7 +43,9 @@ pre code, pre, code {
 
 
 ```{r label = "setup", include = FALSE}
+library(qwraps2) # load and attach so you can use `%s%` easily
 options(qwraps2_markup = "markdown")
+options(knitr.kable.NA = '')
 knitr::opts_chunk$set(collapse = TRUE)
 ```
 
@@ -69,7 +71,7 @@ Funded by NICHD grant number R03HD094912 we retroactively mapped the data
 collected by the PEDALFAST project the [Federal Interagency Traumatic Brain
 Injury Research (FITBIR)](https://fitbir.nih.gov/) data standard.  The R data
 package
-`r  qwraps2::Rpkg(pedalfast.data)  `
+``r  qwraps2::Rpkg(pedalfast.data)  ``
 provides the data submitted to FITBIR as both raw files
 and in ready to use R data sets.
 
@@ -89,11 +91,11 @@ package.
 # Provided Data Sets
 
 The
-`r  qwraps2::Rpkg(pedalfast.data)  `
+``r  qwraps2::Rpkg(pedalfast.data)  ``
 package provides the following data objects:
 
 
-```{r label = "list_exported_datasets"}
+```{r label = "list_exported_datasets", results = "markup"}
 data(package = "pedalfast.data")$results[, c("Item", "Title")]
 ```
 
@@ -112,7 +114,7 @@ reading this vignette.
 
 The data collected during the PEDALFAST study has been provided in two
 data.frames so the end user may opt into using another paradigm such as
-`r  qwraps2::CRANpkg(data.table)  `
+``r  qwraps2::CRANpkg(data.table)  ``
 or the [tidyverse](https://www.tidyverse.org/).  The following will focus on
 use of base R methods only.
 
@@ -120,7 +122,7 @@ Reproduction of the examples in this vignette will require the following
 namespaces.
 
 
-```{r label = "pedalfast_data"}
+```{r label = "pedalfast_data", echo = TRUE, results = "hide"}
 library(pedalfast.data)
 ```
 
@@ -128,7 +130,7 @@ library(pedalfast.data)
 Load the provided data sets into the active session via data as follows.
 
 
-```{r }
+```{r}
 data(pedalfast,          package = "pedalfast.data")
 data(pedalfast_metadata, package = "pedalfast.data")
 
@@ -138,10 +140,10 @@ str(pedalfast_metadata, max.level = 0)
 
 
 The
-`r  qwraps2::backtick(pedalfast)  `
+``r  qwraps2::backtick(pedalfast)  ``
 is a data frame with each row reporting the collected data for one
 subject, and each column being a unique variable.  The
-`r  qwraps2::backtick(pedalfast_metadata)  `
+``r  qwraps2::backtick(pedalfast_metadata)  ``
 data frame is a selection of columns from the data dictionary provided by a
 REDCap export of the project.  In the following you will find examples of
 specific utilities provided in this package to make formatting the data
@@ -150,27 +152,28 @@ easier.
 Let's look at the first three columns of pedalfast, and the first three rows
 of pedalfast\_metadata.
 
-```{r }
+```{r}
 head(pedalfast[, 1:3])
 pedalfast_metadata[1:3, ]
 ```
 
 
 The first column of
-`r  qwraps2::backtick(pedalfast)  `
+``r  qwraps2::backtick(pedalfast)  ``
 is the studyid, and the first row of
-`r  qwraps2::backtick(pedalfast_metadata)  `
+``r  qwraps2::backtick(pedalfast_metadata)  ``
 is the documentation for the studyid.  Similarly, the
 second column of
-`r  qwraps2::backtick(pedalfast)  `
+``r  qwraps2::backtick(pedalfast)  ``
 and second row of
-`r  qwraps2::backtick(pedalfast_metadata)  `
-are for the age of the patient.  The first notable change in is in the third row of the
-`r  qwraps2::backtick(pedalfast_metadata)  `
+``r  qwraps2::backtick(pedalfast_metadata)  ``
+are for the age of the patient.  The first notable change in is in the third
+row of the
+``r  qwraps2::backtick(pedalfast_metadata)  ``
 where the indicator for
-`r  pedalfast_metadata[3, "variable"]  `
+``r  pedalfast_metadata[3, "variable"]  ``
 is documented including the mapping from integer to English:
-`r  pedalfast_metadata[3, "values"]  `
+``r  pedalfast_metadata[3, "values"]  ``
 
 The rest of this section of the vignette provides details on each of the
 variables in the data set and provides some examples for data use.
@@ -182,8 +185,15 @@ a patient specific random number between 100 and 999 with no mapping to the
 sites.  That is, you should not be able to determine which site provided a
 specific row of data.
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable == "studyid"))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable == "studyid") |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 str(pedalfast$studyid)
 ```
 
@@ -192,8 +202,16 @@ str(pedalfast$studyid)
 
 Age of the patient is reported in days.
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable == "age"))
+
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable == "age") |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast$age)          # in days
 summary(pedalfast$age / 365.25) # in years
 ```
@@ -209,17 +227,20 @@ month but less than two months would have a reported age of 0.083 (1/12), a 8
 month old would have a reported age of 0.666 (8/12).  Note the truncation of
 the decimal.  If you require the same rounding scheme we have provided a
 function in this package
-`r  qwraps2::backtick(round_age)  `
+``r  qwraps2::backtick(round_age)  ``
 to provide the rounding with the truncation.  The function will return age as
 a character by default, a numeric value will be returned when specified.
 
-```{r }
+```{r echo = TRUE, results = "markup"}
 fitbir_ages <-
   data.frame(age  = pedalfast$age / 365.25,
              char = round_age(pedalfast$age / 365.25),
              num  = round_age(pedalfast$age / 365.25, type = "numeric"))
 
-plot(fitbir_ages$age, fitbir_ages$num, xlab = "Age (years)", ylab = "FITBIR Age (Years)")
+plot(x = fitbir_ages$age,
+     y = fitbir_ages$num,
+     xlab = "Age (years)",
+     ylab = "FITBIR Age (Years)")
 ```
 
 
@@ -231,10 +252,18 @@ patient/caregivers.  This variable was not determined by sex chromosomes
 genotyping.  The intent was to report sex but gender, the social constructed
 identify of sex, might be more appropriate.
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable == "female"))
-sum(pedalfast$female)
-mean(pedalfast$female)
+
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable == "female") |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
+with(pedalfast, {table(female)})
+with(pedalfast, {prop.table(table(female))})
 ```
 
 
@@ -246,17 +275,24 @@ known values and are presented as character vectors in the pedalfast
 data.frame.  The time from injury to admission (injurytoadmit) is reported in
 days, if the date of injury was known.
 
-```{r }
-inj_vars <- c("sourceinj", "injurytoadmit", "injurymech")
-knitr::kable(subset(pedalfast_metadata, variable %in% inj_vars))
-summary(pedalfast[, inj_vars])
+
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable %in% c("sourceinj", "injurytoadmit", "injurymech")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
+summary(pedalfast[, c("sourceinj", "injurytoadmit", "injurymech")])
 ```
 
 
 The injurymech is a character vector by default so the end user may build a
 factor as needed.
 
-```{r }
+```{r echo = TRUE, results = "markup"}
 table(pedalfast$injurymech, useNA = "always")
 ```
 
@@ -275,8 +311,15 @@ with the suffix 'ed' which are also reported later from the ICU with the
 suffix 'icu'.
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, grepl("^gcs.*ed$", variable)))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, grepl("^gcs.*ed$", variable)) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[, grep("^gcs.*ed$", names(pedalfast))])
 ```
 
@@ -284,12 +327,12 @@ summary(pedalfast[, grep("^gcs.*ed$", names(pedalfast))])
 GCS for the eye, verbal, and motor can be used as both numeric
 values (as reported in the pedalfast data.frame) or as a categorical
 variable.  The
-`r  qwraps2::Rpkg(pedalfast.data)  `
+``r  qwraps2::Rpkg(pedalfast.data)  ``
 package provides functions for quickly mapping from the numeric values to a
 factor for gcs.  The functions
-`r  qwraps2::backtick(gcs_as_integer)  `
+``r  qwraps2::backtick(gcs_as_integer)  ``
 and
-`r  qwraps2::backtick(gcs_as_factor)  `
+``r  qwraps2::backtick(gcs_as_factor)  ``
 
 While GCS is a common assessment, the specific language used may vary.  By
 providing these functions we are able to report the exact language used on
@@ -299,29 +342,30 @@ Lower numeric values of GCS correspond to lower neurological functioning.
 To illustrate this consider, mapping the integer values 1 through 6 to the
 labels for the GCS scales:
 
-```{r }
-knitr::kable(
-             data.frame(integers = 1:6,
-                        eye      = gcs_as_factor(1:6, scale = "eye"),
-                        motor    = gcs_as_factor(1:6, scale = "motor"),
-                        verbal   = gcs_as_factor(1:6, scale = "verbal"))
-)
+```{r results = 'asis'}
+data.frame(integer = 1:6,
+           eye      = gcs_as_factor(1:6, scale = "eye"),
+           motor    = gcs_as_factor(1:6, scale = "motor"),
+           verbal   = gcs_as_factor(1:6, scale = "verbal")
+           ) |>
+  knitr::kable(format = "html", row.names = FALSE, align = "clll") |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
 ```
 
 
 By default, the mapping of the integer values to factor levels will map the
 the integer value of 1 to level 1.  The argument
-`r  qwraps2::backtick(highest_first)  `
+``r  qwraps2::backtick(highest_first)  ``
 will reverse the order of the levels.  This option has been provided to help
 make setting a logical reference level for modeling.  For example, say we
 want to estimate hospital length of stay by the motor GCS score.
 
-```{r }
+```{r}
 gcs_example_data <-
-  data.frame(los = pedalfast$hosplos,
+  data.frame(los       = pedalfast$hosplos,
              motor_int = pedalfast$gcsmotored,
-             motor_f1  = gcs_as_factor(pedalfast$gcseyeed, scale = "eye"),
-             motor_f2  = gcs_as_factor(pedalfast$gcseyeed, scale = "eye", highest_first = TRUE))
+             motor_f1  = gcs_as_factor(pedalfast$gcsmotored, scale = "eye"),
+             motor_f2  = gcs_as_factor(pedalfast$gcsmotored, scale = "eye", highest_first = TRUE))
 
 head(gcs_example_data)
 ```
@@ -330,7 +374,7 @@ head(gcs_example_data)
 Just looking at the summary of the example data set shows the order of the
 factor is different
 
-```{r }
+```{r}
 summary(gcs_example_data)
 ```
 
@@ -338,16 +382,17 @@ summary(gcs_example_data)
 Thus, simple regression models will use either "no response" or "spontaneous"
 as the reference level.  Pick the one you want to use.
 
-```{r }
+```{r}
 summary(lm(los ~ motor_int, data = gcs_example_data))$coef
 summary(lm(los ~ motor_f1,  data = gcs_example_data))$coef
 summary(lm(los ~ motor_f2,  data = gcs_example_data))$coef
 ```
 
 
-The total GCS score is provided.
+Along with the three component scores of GCS, the total GCS score is provided
+within the pedalfast data set
 
-```{r }
+```{r}
 summary(pedalfast$gcsed)
 ```
 
@@ -356,19 +401,25 @@ Be careful with factors.  Recall that factors are numeric vectors with the
 first level mapped to the value one, regardless if that is logical or not.
 Thus:
 
-```{r }
-identical(pedalfast$gcsed,
-          pedalfast$gcseyeed + pedalfast$gcsmotored + pedalfast$gcsverbaled)
+```{r}
+identical(
+  pedalfast$gcsed,
+  pedalfast$gcseyeed + pedalfast$gcsmotored + pedalfast$gcsverbaled
+)
 
-identical(pedalfast$gcsed,
-          as.integer(gcs_as_factor(pedalfast$gcseyeed, "eye")) +
-          as.integer(gcs_as_factor(pedalfast$gcsmotored, "motor")) +
-          as.integer(gcs_as_factor(pedalfast$gcsverbaled, "verbal")))
+identical(
+  pedalfast$gcsed,
+  as.integer(gcs_as_factor(pedalfast$gcseyeed,    "eye")) +
+    as.integer(gcs_as_factor(pedalfast$gcsmotored,  "motor")) +
+    as.integer(gcs_as_factor(pedalfast$gcsverbaled, "verbal"))
+)
 
-identical(pedalfast$gcsed,
-          as.integer(gcs_as_factor(pedalfast$gcseyeed, "eye", highest_first = TRUE)) +
-          as.integer(gcs_as_factor(pedalfast$gcsmotored, "motor", highest_first = TRUE)) +
-          as.integer(gcs_as_factor(pedalfast$gcsverbaled, "verbal", highest_first = TRUE)))
+identical(
+  pedalfast$gcsed,
+  as.integer(gcs_as_factor(pedalfast$gcseyeed,    "eye",    highest_first = TRUE)) +
+    as.integer(gcs_as_factor(pedalfast$gcsmotored,  "motor",  highest_first = TRUE)) +
+    as.integer(gcs_as_factor(pedalfast$gcsverbaled, "verbal", highest_first = TRUE))
+)
 ```
 
 
@@ -377,8 +428,15 @@ identical(pedalfast$gcsed,
 Disposition form the emergency department:
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable == "eddisposition"))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable == "eddisposition") |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 table(pedalfast$eddisposition, useNA = "always")
 ```
 
@@ -390,10 +448,33 @@ variables prefixed by "ct" with the exception of the time from admission to
 ct.
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, grepl("^(admitto)*ct", variable)))
-head(pedalfast[, grepl("^(admitto)*ct", names(pedalfast))])
-summary(pedalfast[, grepl("^(admitto)*ct", names(pedalfast))])
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, grepl("^(admitto)*ct", variable)) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r label = "summary table of imaging", echo = FALSE, results = "asis"}
+qs <-
+  c(qwraps2::qsummary(pedalfast["admittoct"])[1],
+    list(
+      "Findings" = list(
+        "ctskullfrac"    = ~ qwraps2::n_perc(ctskullfrac,    na_rm = TRUE, show_denom = "always"),
+        "ctce"           = ~ qwraps2::n_perc(ctce,           na_rm = TRUE, show_denom = "always"),
+        "ctmidlineshift" = ~ qwraps2::n_perc(ctmidlineshift, na_rm = TRUE, show_denom = "always"),
+        "ctcompress"     = ~ qwraps2::n_perc(ctcompress,     na_rm = TRUE, show_denom = "always"),
+        "ctintraventhem" = ~ qwraps2::n_perc(ctintraventhem, na_rm = TRUE, show_denom = "always"),
+        "ctsubarchhem"   = ~ qwraps2::n_perc(ctsubarchhem,   na_rm = TRUE, show_denom = "always"),
+        "ctintraventhem" = ~ qwraps2::n_perc(ctintraventhem, na_rm = TRUE, show_denom = "always"),
+        "ctsubhematoma"  = ~ qwraps2::n_perc(ctsubhematoma,  na_rm = TRUE, show_denom = "always"),
+        "ctepihematoma"  = ~ qwraps2::n_perc(ctepihematoma,  na_rm = TRUE, show_denom = "always")
+      )
+    )
+  )
+
+qwraps2::summary_table(pedalfast, qs)
 ```
 
 
@@ -404,8 +485,15 @@ There are several variables groups from the ICU.
 ### Source of information
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable == "sourceicu"))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable == "sourceicu") |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 table(pedalfast$sourceicu, useNA = "always")
 ```
 
@@ -413,8 +501,15 @@ table(pedalfast$sourceicu, useNA = "always")
 ### Pupil Reactivity
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable == "puplrcticu"))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable == "puplrcticu") |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 table(pedalfast$puplrcticu, useNA = "always")
 ```
 
@@ -425,8 +520,16 @@ GCS in the ICU are similar variables as where noted in the emergency
 department.  Variable names are appended by "icu" for the values attended in
 the ICU
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, grepl("^gcs.*icu$", variable)))
+
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, grepl("^gcs.*icu$", variable)) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[, grepl("^gcs.*icu$", names(pedalfast))])
 ```
 
@@ -439,8 +542,16 @@ readmission (second overall admission) occurred admittoicuadmit2 days from
 admission.  The duration of the first readmission (second overall admission)
 would be the difference between admitttoicudc2 and admittoicuadmit2.
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, grepl("^admittoicu", variable)))
+
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, grepl("^admittoicu", variable)) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[, grepl("^admittoicu", names(pedalfast))])
 ```
 
@@ -448,8 +559,15 @@ summary(pedalfast[, grepl("^admittoicu", names(pedalfast))])
 ## Mechanical Ventilation
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("ventyn", "admittoint", "admittoext")))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable %in% c("ventyn", "admittoint", "admittoext")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[, c("ventyn", "admittoint", "admittoext")])
 ```
 
@@ -457,30 +575,57 @@ summary(pedalfast[, c("ventyn", "admittoint", "admittoext")])
 ## Intracranial pressure (ICP) monitors
 
 
-```{r }
+```{r label = "icp summary", echo = FALSE, results = "asis"}
 knitr::kable(subset(pedalfast_metadata, grepl("^(admitto)*icp.+\\d", variable)))
+
+```
+```{r label = "icp summary table", echo = FALSE, results = "markup"}
 summary(pedalfast[pedalfast$icpyn1 == 1, grepl("^(admitto)*icp.+\\d", names(pedalfast))])
 ```
 
 
-ICP monitor types:
+### ICP monitor types:
 
-```{r }
-table(pedalfast$icptype1)
+
+```{r include = FALSE}
+icptypes <- unique(na.omit(with(pedalfast, c(icptype1, icptype2, icptype3))));
+```
+
+There are
+``r  length(icptypes)  ``
+types of ICP monitors reported in the dataset:
+``r  icptypes[1] %s% ", " %s% icptypes[2] %s% ", and " %s% icptypes[3] %s% "."  ``
+
+
+
+```{r echo = TRUE, results = "hide"}
+icptypes <-
+  xtabs( ~ icptype1 + icptype2 + icptype3, data = pedalfast, addNA = TRUE) |>
+  as.data.frame()
+icptypes <- subset(icptypes, Freq > 0)
+
+```
+```{r echo = FALSE, results = "asis"}
+icptypes |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
 ```
 
 
 ## Invasive Vascular Catheters
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, grepl("^(admitto)*cath.+\\d", variable)))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, grepl("^(admitto)*cath.+\\d", variable)) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
 ```
 
 
 First catheter
 
-```{r }
+
+```{r echo = TRUE, results = "markup"}
 summary(
   subset(pedalfast,
          !is.na(cathtype1),
@@ -492,7 +637,8 @@ table(pedalfast$cathtype1)
 
 Second catheter
 
-```{r }
+
+```{r echo = TRUE, results = "markup"}
 summary(
   subset(pedalfast,
          !is.na(cathtype2),
@@ -504,7 +650,8 @@ table(pedalfast$cathtype2)
 
 Third catheter
 
-```{r }
+
+```{r echo = TRUE, results = "markup"}
 summary(
   subset(pedalfast,
          !is.na(cathtype3),
@@ -516,7 +663,8 @@ table(pedalfast$cathtype3)
 
 Fourth catheter
 
-```{r }
+
+```{r echo = TRUE, results = "markup"}
 summary(
   subset(pedalfast,
          !is.na(cathtype4),
@@ -529,8 +677,15 @@ table(pedalfast$cathtype4)
 ## Tracheostomy
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("newtrachyn", "admittotrach")))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable %in% c("newtrachyn", "admittotrach")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[pedalfast$newtrachyn == 1, c("newtrachyn", "admittotrach")])
 ```
 
@@ -538,8 +693,15 @@ summary(pedalfast[pedalfast$newtrachyn == 1, c("newtrachyn", "admittotrach")])
 ## Gastrostomy
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("newgastyn", "admittogast")))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable %in% c("newgastyn", "admittogast")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[pedalfast$newgastyn == 1, c("newgastyn", "admittogast")])
 ```
 
@@ -547,8 +709,15 @@ summary(pedalfast[pedalfast$newgastyn == 1, c("newgastyn", "admittogast")])
 ## Decompressive craniectomy
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("decomcranyn", "admittocrani")))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable %in% c("decomcranyn", "admittocrani")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[pedalfast$decomcranyn == 1, c("decomcranyn", "admittocrani")])
 ```
 
@@ -556,8 +725,15 @@ summary(pedalfast[pedalfast$decomcranyn == 1, c("decomcranyn", "admittocrani")])
 ## Lumbar Drain
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("lmbrdrainyn", "admittolmbdrain")))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable %in% c("lmbrdrainyn", "admittolmbdrain")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[pedalfast$lmbrdrainyn == 1, c("lmbrdrainyn", "admittolmbdrain")])
 ```
 
@@ -565,8 +741,15 @@ summary(pedalfast[pedalfast$lmbrdrainyn == 1, c("lmbrdrainyn", "admittolmbdrain"
 ## Epidural Hematoma Evacuated
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("epihemyn", "admittoedhevac")))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable %in% c("epihemyn", "admittoedhevac")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[pedalfast$epihemyn == 1, c("epihemyn", "admittoedhevac")])
 ```
 
@@ -574,8 +757,15 @@ summary(pedalfast[pedalfast$epihemyn == 1, c("epihemyn", "admittoedhevac")])
 ## Subdural Hematoma Evacuated
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("subhemyn", "admittosdhevac")))
+```{r echo = FALSE, results = "asis"}
+subset(pedalfast_metadata, variable %in% c("subhemyn", "admittosdhevac")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[pedalfast$subhemyn == 1, c("subhemyn", "admittosdhevac")])
 ```
 
@@ -583,8 +773,15 @@ summary(pedalfast[pedalfast$subhemyn == 1, c("subhemyn", "admittosdhevac")])
 ## Medications
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, grepl("^rx", variable)))
+```{r}
+subset(pedalfast_metadata, grepl("^rx", variable)) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[, grepl("^rx", names(pedalfast))])
 ```
 
@@ -592,8 +789,15 @@ summary(pedalfast[, grepl("^rx", names(pedalfast))])
 ## TPN
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("tpnyn", "admittotpn")))
+```{r}
+subset(pedalfast_metadata, variable %in% c("tpnyn", "admittotpn")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[pedalfast$tpnyn == 1, c("tpnyn", "admittotpn")])
 ```
 
@@ -601,8 +805,15 @@ summary(pedalfast[pedalfast$tpnyn == 1, c("tpnyn", "admittotpn")])
 ## Enteral Nutrition
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("entnutyn", "admittoentnut")))
+```{r}
+subset(pedalfast_metadata, variable %in% c("entnutyn", "admittoentnut")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[pedalfast$entnutyn == 1, c("entnutyn", "admittoentnut")])
 ```
 
@@ -610,10 +821,22 @@ summary(pedalfast[pedalfast$entnutyn == 1, c("entnutyn", "admittoentnut")])
 ## Hospital LOS and Disposition
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, variable %in% c("hosplos", "hospdisposition")))
+```{r}
+subset(pedalfast_metadata, variable %in% c("hosplos", "hospdisposition")) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[, c("hosplos", "hospdisposition")])
-table(pedalfast$hospdisposition, useNA = "always")
+```
+
+The dispositions are:
+
+```{r echo = TRUE, results = "markup"}
+qwraps2::summary_table(pedalfast["hospdisposition"])
 ```
 
 
@@ -622,8 +845,15 @@ table(pedalfast$hospdisposition, useNA = "always")
 Indicator and location for cardiac arrest.
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, grepl("^cardiac", variable)))
+```{r}
+subset(pedalfast_metadata, grepl("^cardiac", variable)) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[, grepl("^cardiac", names(pedalfast))])
 ```
 
@@ -631,8 +861,15 @@ summary(pedalfast[, grepl("^cardiac", names(pedalfast))])
 ## Functional Status Scale
 
 
-```{r }
-knitr::kable(subset(pedalfast_metadata, grepl("fss", variable)))
+```{r}
+subset(pedalfast_metadata, grepl("fss", variable)) |>
+  knitr::kable(format = "html", row.names = FALSE) |>
+  kableExtra::kable_styling(bootstrap_options = "striped")
+```
+
+
+
+```{r echo = TRUE, results = "markup"}
 summary(pedalfast[, grepl("fss", names(pedalfast))])
 ```
 
@@ -640,7 +877,7 @@ summary(pedalfast[, grepl("fss", names(pedalfast))])
 
 # Mapping PEDALFAST to FITBIR
 
-The PEDALFAST data sets have been organized, submitted, and 
+The PEDALFAST data sets have been organized, submitted, and
 published via the [Federal Interagency Traumatic Brain Injury
 Research (FITBIR) Informatics System](https://fitbir.nih.gov/).
 

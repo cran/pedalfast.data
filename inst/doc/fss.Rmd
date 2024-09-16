@@ -6,7 +6,7 @@ output:
 bibliography: references.bib
 csl: ccm.csl
 vignette: >
- %\VignetteIndexEntry{fss}
+ %\VignetteIndexEntry{Functional status scale for pediatric TBI}
  %\VignetteEngine{knitr::rmarkdown}
  %\VignetteEncoding{UTF-8}
 ---
@@ -27,7 +27,7 @@ echoed in this vignette.  The full .Rmd file, including the in line code, can
 be found at:
 
 ```{r label = "system-location-of-vignette", eval = FALSE}
-system.file("doc/fss.Rmd", package = "pedalfast.data")
+system.file("doc", "fss.Rmd", package = "pedalfast.data")
 ```
 
 
@@ -56,28 +56,18 @@ ED value is unknown.
 
 ```{r label = "build-gcsusing"}
 # gather all the gcs values form the ed.
-gcs_ed_vars <- grep("^gcs.*ed$", names(pedalfast), value = TRUE)
+gcs_ed_vars <- grep("^gcs(?!yn).*ed$", names(pedalfast), value = TRUE, perl = TRUE)
 gcs_ed_vars
 
-# create a set of gcs _using variables.
+# create a set of gcs _using variables.  This could be done using the
+# data.table::fcoalesce function.  Base R code is provided here:
 for(j in gcs_ed_vars) {
   pedalfast[[sub("ed$", "_using", j)]] <-
     ifelse(is.na(pedalfast[[j]]), pedalfast[[ sub("ed$", "icu", j) ]], pedalfast[[j]])
 }
 
-summary(pedalfast$gcs_using)
-
-# Inspect the rows with missing values:
-pedalfast[is.na(pedalfast$gcs_using), ]
-```
-
-
-Most of the data associated with records missing gcs_using is also missing.
-For simplicity we will omit these records.
-
-
-```{r label = "subset-via-gcsusing"}
-pedalfast <- subset(pedalfast, !is.na(gcs_using))
+# verify there are no missing values
+stopifnot(!any(is.na(pedalfast$gcs_using)))
 ```
 
 
@@ -345,9 +335,9 @@ among those with severe TBI.  The "Other
 
 Many children who survived to hospital discharge had impaired functional
 status.
-`r  n_perc(pedalfast$fsstotal >= 8)  `
+`r  with(subset(pedalfast, hospdisposition != "Mortality"), n_perc(pedalfast$fsstotal >= 8, na_rm = TRUE))  `
 had at least "mildly abnormal" functional status and
-`r  n_perc(pedalfast$fsstotal >= 10)  `
+`r  with(subset(pedalfast, hospdisposition != "Mortality"), n_perc(pedalfast$fsstotal >= 10, na_rm = TRUE))  `
 had at least "moderately abnormal" functional status (Table
 2).[@Pollack2014a]  The mean &plusmn; standard deviation for the total FSS, for those with a
 known FSS, was
@@ -428,9 +418,9 @@ respectively.
 
 
 ```{r}
-fit <- lm(fsstotal ~ injurymech + 0 + I(age / 365.25), data = pedalfast)
+fit <- lm(fsstotal ~ injurymech + I(age / 365.25) - 1, data = pedalfast)
 summary(fit)
-car::Anova(fit, type = 2)
+summary(aov(fit))
 fsstotal_lm_cis <- qwraps2::frmtci(cbind(coef(fit), confint(fit)), show_level = TRUE)
 fsstotal_lm_cis
 ```
@@ -648,13 +638,13 @@ ggplot(pedalfast) +
   aes(x = gcs_using, y = fsstotal) +
   stat_sum(aes(size = ..n..), alpha = 0.2) +
   scale_size_area(breaks = c(5, 10, 15), "Count", max_size = 7) +
-  stat_smooth(method = "lm", formula = y ~ x, size = 0.5, alpha = 0.4, level = 0.95, color = "black", linetype = 2) +
+  stat_smooth(method = "lm", formula = y ~ x, linewidth = 0.5, alpha = 0.4, level = 0.95, color = "black", linetype = 2) +
   scale_x_continuous(breaks = seq(3, 15, 1)) +
   scale_y_continuous(breaks = c(6, 10, 15, 20, 25), limits = c(5, 25)) +
   xlab("Glasgow Coma Scale") +
   ylab("Discharge FSS") +
   theme_classic(base_size = 16) +
-  theme(legend.position = c(0.9, 0.9))
+  theme(legend.position.inside = c(0.9, 0.9))
 ```
 
 
